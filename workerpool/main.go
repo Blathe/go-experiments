@@ -20,6 +20,21 @@ type worker struct {
 	Index      int
 	CurrentJob int
 	HasJob     bool
+	WorkerPool *workerpool
+}
+
+type workerpool struct {
+	Jobs             []*job
+	Workers          []*worker
+	AvailableWorkers []*worker
+}
+
+func (wp *workerpool) HaveWorkersFindJobs(jp *[]*job) {
+	for _, worker := range wp.AvailableWorkers {
+		if worker.HasJob == false {
+			worker.CheckForMoreJobs(jp)
+		}
+	}
 }
 
 func (w *worker) StartJob(j *job, pool *[]*job) {
@@ -60,7 +75,13 @@ func main() {
 	min := 1
 	max := 2
 
-	for i := 0; i < 10; i++ {
+	workerPool := workerpool{
+		Workers:          nil,
+		AvailableWorkers: nil,
+		Jobs:             jobPool,
+	}
+
+	for i := 0; i < 5000; i++ {
 		newJob := job{
 			Index:           i,
 			StartMessage:    fmt.Sprintf("Job %v started...", i),
@@ -76,12 +97,18 @@ func main() {
 			Index:      i,
 			CurrentJob: i,
 			HasJob:     false,
+			WorkerPool: &workerPool,
 		}
+		workerPool.Workers = append(workerPool.Workers, &newWorker)
+		workerPool.AvailableWorkers = append(workerPool.AvailableWorkers, &newWorker)
+
 		fmt.Println("Spawning worker...")
 		go newWorker.StartJob(jobPool[i], &jobPool)
 	}
 
 	time.Sleep(3 * time.Second)
+	AddMoreJobs(&jobPool)
+	time.Sleep(8 * time.Second)
 	AddMoreJobs(&jobPool)
 	fmt.Scanln()
 }
